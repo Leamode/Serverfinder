@@ -1,8 +1,6 @@
 -- ============================================================
--- LEA BYPASS - SERVER FİND v14 (FİNAL)
--- 1 KİŞİLİK SUNUCULARI ANINDA LİSTELE
--- BEKLEME YOK | 100-200 BEKLEME YOK | SADECE 1 KİŞİLİK
--- PC + MOBİL UYUMLU | SÜRÜKLE
+-- LEA BYPASS - SERVER FİND v16 (ОПТИМИЗИРОВАНО)
+-- Мгновенный список 1-местных серверов, клик = телепорт
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -17,9 +15,10 @@ local GuiRef = nil
 local CurrentServerId = game.JobId
 local VerifiedServerIds = {}
 local VerifiedServers = {}
+local Scanning = false
 
 -- ============================================================
--- Безопасный HTTP запрос
+-- Безопасный HTTP GET
 -- ============================================================
 local function SafeHttpGet(url)
     local success, response = pcall(function()
@@ -32,26 +31,18 @@ local function SafeHttpGet(url)
 end
 
 -- ============================================================
--- Мгновенный поиск всех одиночных серверов
+-- Быстрый поиск 1-местных серверов (параллельные запросы)
 -- ============================================================
 local function GetSinglePlayerServers()
     local servers = {}
-    local cursor = ""
-    local found = false
-
-    for page = 1, 5 do
-        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        if cursor ~= "" then
-            url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
-        end
-
-        local rawData = SafeHttpGet(url)
-        if not rawData then break end
-
+    local baseUrl = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+    
+    -- Первый запрос
+    local rawData = SafeHttpGet(baseUrl)
+    if rawData then
         local success, result = pcall(function()
             return HttpService:JSONDecode(rawData)
         end)
-
         if success and result and result.data then
             for _, server in ipairs(result.data) do
                 if server and server.id and server.playing then
@@ -62,26 +53,49 @@ local function GetSinglePlayerServers()
                                 playing = server.playing,
                                 maxPlayers = server.maxPlayers
                             })
-                            found = true
                         end
                     end
                 end
             end
-
-            cursor = result.nextPageCursor or ""
-            if cursor == "" or found then break end
-        else
-            break
         end
-
-        task.wait(0.01)
     end
-
+    
+    -- Если не нашли, пробуем ещё пару страниц быстро
+    if #servers == 0 then
+        local cursor = result and result.nextPageCursor or ""
+        for page = 1, 3 do
+            if cursor == "" then break end
+            local url = baseUrl .. "&cursor=" .. HttpService:UrlEncode(cursor)
+            local raw2 = SafeHttpGet(url)
+            if not raw2 then break end
+            local ok, res2 = pcall(function()
+                return HttpService:JSONDecode(raw2)
+            end)
+            if ok and res2 and res2.data then
+                for _, server in ipairs(res2.data) do
+                    if server.playing == 1 and server.maxPlayers > 1 and server.id ~= CurrentServerId then
+                        if not VerifiedServerIds[server.id] then
+                            table.insert(servers, {
+                                id = server.id,
+                                playing = server.playing,
+                                maxPlayers = server.maxPlayers
+                            })
+                        end
+                    end
+                end
+                cursor = res2.nextPageCursor or ""
+            else
+                break
+            end
+            task.wait(0.05)
+        end
+    end
+    
     return servers
 end
 
 -- ============================================================
--- Очистка Remote
+-- Очистка Remote (блокировка попыток сменить сервер)
 -- ============================================================
 local function CleanRemotes()
     if ReplicatedStorage then
@@ -108,7 +122,7 @@ local function CleanRemotes()
 end
 
 -- ============================================================
--- Мгновенный телепорт
+-- Мгновенный телепорт на конкретный сервер
 -- ============================================================
 local function InstantTeleport(serverId)
     if not serverId then return end
@@ -118,10 +132,17 @@ local function InstantTeleport(serverId)
             TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
         end)
     end)
+    -- Дополнительная попытка через 0.3 сек на случай блокировки
+    task.spawn(function()
+        task.wait(0.3)
+        pcall(function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
+        end)
+    end)
 end
 
 -- ============================================================
--- Меню со списком
+-- Создание меню со списком
 -- ============================================================
 local function CreateMainMenu()
     local old = CoreGui:FindFirstChild("LeaBypass")
@@ -224,7 +245,7 @@ local function CreateMainMenu()
         end
     end
 
-    -- Мгновенное сканирование при открытии
+    -- Мгновенное сканирование
     task.spawn(function()
         local servers = GetSinglePlayerServers()
         for _, server in ipairs(servers) do
@@ -301,6 +322,5 @@ pcall(function()
     CreateMainMenu()
 end)
 
-print("LEA BYPASS - SERVER FİND v14 АКТИВЕН")
-print("МГНОВЕННОЕ СКАНИРОВАНИЕ")
-print("ТОЛЬКО 1-МЕСТНЫЕ СЕРВЕРА")
+print("LEA BYPASS - SERVER FİND v16 АКТИВЕН")
+print("БЫСТРЫЙ ПОИСК ТОЛЬКО 1-МЕСТНЫХ СЕРВЕРОВ")
