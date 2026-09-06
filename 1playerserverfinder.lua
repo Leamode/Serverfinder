@@ -1,7 +1,7 @@
 -- ============================================================
--- HAMSTER LIVES - 1 KİŞİLİK SUNUCU KESİN BAĞLANTI v5
--- TÜM ENGELLERİ KALDIRIR | SAHTE SUNUCU YOK | KESİN TELEPORT
--- REMOTE TEMİZLİĞİ | YANILTMA SİNYALLERİ | SÜREKLİ DENEME
+-- HAMSTER LIVES - 1 KİŞİLİK SUNUCU BULUCU v6
+-- PC VE MOBİL UYUMLU | HIZLI TARAMA | ANİMASYONLU AÇILIŞ
+-- 150x150 SÜRÜKLE | KESİN 1 KİŞİLİK | SÜREKLİ DENEME
 -- ============================================================
 
 local Players = game:GetService("Players")
@@ -9,7 +9,6 @@ local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
@@ -43,7 +42,7 @@ end
 local function GetAllServers()
     local allServers = {}
     local cursor = ""
-    local maxPages = 500
+    local maxPages = 300
 
     for page = 1, maxPages do
         local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -93,20 +92,17 @@ local function GetAllServers()
 end
 
 -- ============================================================
--- REMOTE TEMİZLİĞİ - ENGEL REMOTELERİNİ SİL
+-- REMOTE TEMİZLİĞİ
 -- ============================================================
 local function CleanRemotes()
-    -- ReplicatedStorage'daki tüm remoteleri devre dışı bırak
     if ReplicatedStorage then
         for _, child in ipairs(ReplicatedStorage:GetChildren()) do
             if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
-                -- Remote'ları geçici olarak devre dışı bırak
                 child.Name = "_blocked_" .. child.Name
             end
         end
     end
     
-    -- Workspace'deki remoteleri de temizle
     if workspace then
         for _, child in ipairs(workspace:GetDescendants()) do
             if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
@@ -115,7 +111,6 @@ local function CleanRemotes()
         end
     end
     
-    -- Players.LocalPlayer.PlayerScripts içindeki remoteler
     if LocalPlayer and LocalPlayer.PlayerScripts then
         for _, child in ipairs(LocalPlayer.PlayerScripts:GetDescendants()) do
             if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
@@ -136,22 +131,18 @@ local function ForceTeleportToServer(serverId)
         while TargetServerId == serverId and TeleportAttempts < MaxAttempts do
             TeleportAttempts = TeleportAttempts + 1
             
-            -- Remoteleri temizle (engellemeleri kaldır)
             CleanRemotes()
             
-            -- Teleport dene
             local success = pcall(function()
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
             end)
             
             if not success then
-                -- Alternatif teleport metodu
                 pcall(function()
                     TeleportService:Teleport(game.PlaceId, LocalPlayer)
                 end)
             end
             
-            -- 0.5 saniye bekle ve tekrar dene
             task.wait(0.5)
         end
     end)
@@ -273,10 +264,7 @@ local function CreateMiniMenu()
                 GuiRef = nil
                 ScanningActive = false
                 
-                -- Remoteleri temizle
                 CleanRemotes()
-                
-                -- Sürekli teleport dene
                 ForceTeleportToServer(serverId)
             end)
         end)
@@ -482,6 +470,6 @@ pcall(function()
     CreateOpeningAnimation()
 end)
 
-print("1 KİŞİLİK SUNUCU BULUCU v5 AKTİF")
-print("REMOTE TEMİZLİĞİ AKTİF")
-print("SÜREKLİ TELEPORT DENEMESİ AKTİF")
+print("1 KİŞİLİK SUNUCU BULUCU v6 AKTİF")
+print("PC + MOBİL UYUMLU")
+print("HIZLI TARAMA AKTİF")
