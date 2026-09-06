@@ -1,7 +1,7 @@
 -- ============================================================
--- LEA BYPASS - SERVER FİND v13 (SON SÜRÜM)
--- TIKLA → ANINDA 1 KİŞİLİK SUNUCUYA AT
--- BEKLEME YOK | UYARI YOK | HATA YOK | TEKRAR DENE YOK
+-- LEA BYPASS - SERVER FİND v14 (FİNAL)
+-- 1 KİŞİLİK SUNUCULARI ANINDA LİSTELE
+-- BEKLEME YOK | 100-200 BEKLEME YOK | SADECE 1 KİŞİLİK
 -- PC + MOBİL UYUMLU | SÜRÜKLE
 -- ============================================================
 
@@ -15,7 +15,8 @@ local LocalPlayer = Players.LocalPlayer
 
 local GuiRef = nil
 local CurrentServerId = game.JobId
-local IsSearching = false
+local VerifiedServerIds = {}
+local VerifiedServers = {}
 
 -- ============================================================
 -- Безопасный HTTP запрос
@@ -31,30 +32,56 @@ local function SafeHttpGet(url)
 end
 
 -- ============================================================
--- Поиск одиночного сервера (вызывается при клике)
+-- Мгновенный поиск всех одиночных серверов
 -- ============================================================
-local function FindSinglePlayerServer()
-    local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-    local rawData = SafeHttpGet(url)
-    if rawData then
+local function GetSinglePlayerServers()
+    local servers = {}
+    local cursor = ""
+    local found = false
+
+    for page = 1, 5 do
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        if cursor ~= "" then
+            url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
+        end
+
+        local rawData = SafeHttpGet(url)
+        if not rawData then break end
+
         local success, result = pcall(function()
             return HttpService:JSONDecode(rawData)
         end)
+
         if success and result and result.data then
             for _, server in ipairs(result.data) do
                 if server and server.id and server.playing then
                     if server.playing == 1 and server.maxPlayers > 1 and server.id ~= CurrentServerId then
-                        return server.id
+                        if not VerifiedServerIds[server.id] then
+                            table.insert(servers, {
+                                id = server.id,
+                                playing = server.playing,
+                                maxPlayers = server.maxPlayers
+                            })
+                            found = true
+                        end
                     end
                 end
             end
+
+            cursor = result.nextPageCursor or ""
+            if cursor == "" or found then break end
+        else
+            break
         end
+
+        task.wait(0.01)
     end
-    return nil
+
+    return servers
 end
 
 -- ============================================================
--- Очистка Remote (блокировка анти-телепорт механик)
+-- Очистка Remote
 -- ============================================================
 local function CleanRemotes()
     if ReplicatedStorage then
@@ -94,7 +121,7 @@ local function InstantTeleport(serverId)
 end
 
 -- ============================================================
--- Создание меню с одной кнопкой
+-- Меню со списком
 -- ============================================================
 local function CreateMainMenu()
     local old = CoreGui:FindFirstChild("LeaBypass")
@@ -109,8 +136,8 @@ local function CreateMainMenu()
 
     local menu = Instance.new("Frame")
     menu.Name = "MainMenu"
-    menu.Size = UDim2.new(0, 150, 0, 80)
-    menu.Position = UDim2.new(0.5, -75, 0.5, -40)
+    menu.Size = UDim2.new(0, 150, 0, 250)
+    menu.Position = UDim2.new(0.5, -75, 0.5, -125)
     menu.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     menu.BackgroundTransparency = 0
     menu.Parent = gui
@@ -123,51 +150,96 @@ local function CreateMainMenu()
     title.Name = "Title"
     title.Size = UDim2.new(1, 0, 0, 22)
     title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-    title.Text = "LEA BYPASS"
+    title.Text = "LEA BYPASS - 1 KİŞİLİK"
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    title.TextSize = 10
+    title.TextSize = 8
     title.Font = Enum.Font.GothamBold
     title.Parent = menu
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
 
-    local btn = Instance.new("TextButton")
-    btn.Name = "ServerFindButton"
-    btn.Size = UDim2.new(1, -10, 0, 42)
-    btn.Position = UDim2.new(0, 5, 0, 28)
-    btn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-    btn.Text = "SERVER FİND"
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.TextSize = 14
-    btn.Font = Enum.Font.GothamBold
-    btn.Parent = menu
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
-    Instance.new("UIStroke", btn).Color = Color3.fromRGB(255, 0, 0)
+    local countLabel = Instance.new("TextLabel")
+    countLabel.Name = "CountLabel"
+    countLabel.Size = UDim2.new(1, 0, 0, 16)
+    countLabel.Position = UDim2.new(0, 0, 0, 24)
+    countLabel.BackgroundTransparency = 1
+    countLabel.Text = "🔍 TARANIYOR..."
+    countLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    countLabel.TextSize = 9
+    countLabel.Font = Enum.Font.GothamBold
+    countLabel.Parent = menu
 
-    btn.MouseEnter:Connect(function()
-        btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    end)
-    btn.MouseLeave:Connect(function()
-        btn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-    end)
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Name = "ScrollFrame"
+    scroll.Size = UDim2.new(1, -10, 1, -50)
+    scroll.Position = UDim2.new(0, 5, 0, 42)
+    scroll.BackgroundTransparency = 1
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.Parent = menu
+    scroll.ScrollBarThickness = 3
+    scroll.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
 
-    btn.MouseButton1Click:Connect(function()
-        if IsSearching then return end
-        IsSearching = true
-        btn.Text = "GİDİLİYOR..."
-        btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    local layout = Instance.new("UIListLayout")
+    layout.Name = "Layout"
+    layout.Padding = UDim.new(0, 3)
+    layout.Parent = scroll
 
-        task.spawn(function()
-            local serverId = FindSinglePlayerServer()
-            if serverId then
+    local function AddServerButton(server)
+        if not GuiRef or not GuiRef.Parent then return end
+
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, -4, 0, 28)
+        btn.BackgroundColor3 = Color3.fromRGB(20, 0, 0)
+        btn.Text = "👤 1/" .. server.maxPlayers
+        btn.TextColor3 = Color3.fromRGB(255, 0, 0)
+        btn.TextSize = 8
+        btn.Font = Enum.Font.GothamBold
+        btn.Parent = scroll
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        Instance.new("UIStroke", btn).Color = Color3.fromRGB(255, 0, 0)
+
+        btn.MouseEnter:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(40, 0, 0)
+        end)
+        btn.MouseLeave:Connect(function()
+            btn.BackgroundColor3 = Color3.fromRGB(20, 0, 0)
+        end)
+
+        btn.MouseButton1Click:Connect(function()
+            local serverId = server.id
+            btn.Text = "GİDİLİYOR..."
+            btn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+
+            task.spawn(function()
                 if GuiRef then pcall(function() GuiRef:Destroy() end) end
                 GuiRef = nil
                 InstantTeleport(serverId)
-            else
-                btn.Text = "SERVER FİND"
-                btn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-                IsSearching = false
-            end
+            end)
         end)
+    end
+
+    local function UpdateCount()
+        if countLabel and countLabel.Parent then
+            countLabel.Text = "🔍 BULUNAN: " .. #VerifiedServers
+        end
+    end
+
+    -- Мгновенное сканирование при открытии
+    task.spawn(function()
+        local servers = GetSinglePlayerServers()
+        for _, server in ipairs(servers) do
+            if GuiRef and GuiRef.Parent then
+                if not VerifiedServerIds[server.id] then
+                    VerifiedServerIds[server.id] = true
+                    table.insert(VerifiedServers, server)
+                    pcall(function() AddServerButton(server) end)
+                    pcall(UpdateCount)
+                    task.wait(0.01)
+                end
+            else
+                break
+            end
+        end
     end)
 
     -- Перетаскивание
@@ -229,5 +301,6 @@ pcall(function()
     CreateMainMenu()
 end)
 
-print("LEA BYPASS - SERVER FİND v13 АКТИВЕН")
-print("КЛИК → МГНОВЕННЫЙ ТЕЛЕПОРТ")
+print("LEA BYPASS - SERVER FİND v14 АКТИВЕН")
+print("МГНОВЕННОЕ СКАНИРОВАНИЕ")
+print("ТОЛЬКО 1-МЕСТНЫЕ СЕРВЕРА")
