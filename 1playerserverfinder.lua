@@ -1,8 +1,7 @@
 -- ============================================================
--- LEA BYPASS - SERVER FİND v11 (SON)
+-- LEA BYPASS - SERVER FİND v13 (SON SÜRÜM)
 -- TIKLA → ANINDA 1 KİŞİLİK SUNUCUYA AT
 -- BEKLEME YOK | UYARI YOK | HATA YOK | TEKRAR DENE YOK
--- ARKA PLAN YÜKLEME YOK | SADECE TIKLAYINCA İSTEK
 -- PC + MOBİL UYUMLU | SÜRÜKLE
 -- ============================================================
 
@@ -19,7 +18,7 @@ local CurrentServerId = game.JobId
 local IsSearching = false
 
 -- ============================================================
--- GÜVENLİ HTTP
+-- Безопасный HTTP запрос
 -- ============================================================
 local function SafeHttpGet(url)
     local success, response = pcall(function()
@@ -32,17 +31,15 @@ local function SafeHttpGet(url)
 end
 
 -- ============================================================
--- SUNUCU BUL (TIKLAMA ANINDA ÇAĞRILIR)
+-- Поиск одиночного сервера (вызывается при клике)
 -- ============================================================
 local function FindSinglePlayerServer()
     local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-    
     local rawData = SafeHttpGet(url)
     if rawData then
         local success, result = pcall(function()
             return HttpService:JSONDecode(rawData)
         end)
-        
         if success and result and result.data then
             for _, server in ipairs(result.data) do
                 if server and server.id and server.playing then
@@ -53,12 +50,11 @@ local function FindSinglePlayerServer()
             end
         end
     end
-    
     return nil
 end
 
 -- ============================================================
--- REMOTE TEMİZLİĞİ
+-- Очистка Remote (блокировка анти-телепорт механик)
 -- ============================================================
 local function CleanRemotes()
     if ReplicatedStorage then
@@ -68,7 +64,6 @@ local function CleanRemotes()
             end
         end
     end
-    
     if workspace then
         for _, child in ipairs(workspace:GetDescendants()) do
             if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
@@ -76,7 +71,6 @@ local function CleanRemotes()
             end
         end
     end
-    
     if LocalPlayer and LocalPlayer.PlayerScripts then
         for _, child in ipairs(LocalPlayer.PlayerScripts:GetDescendants()) do
             if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then
@@ -87,13 +81,11 @@ local function CleanRemotes()
 end
 
 -- ============================================================
--- ANINDA TELEPORT
+-- Мгновенный телепорт
 -- ============================================================
 local function InstantTeleport(serverId)
     if not serverId then return end
-    
     CleanRemotes()
-    
     task.spawn(function()
         pcall(function()
             TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
@@ -102,7 +94,7 @@ local function InstantTeleport(serverId)
 end
 
 -- ============================================================
--- ANA MENÜ - TEK BUTON
+-- Создание меню с одной кнопкой
 -- ============================================================
 local function CreateMainMenu()
     local old = CoreGui:FindFirstChild("LeaBypass")
@@ -163,10 +155,9 @@ local function CreateMainMenu()
         IsSearching = true
         btn.Text = "GİDİLİYOR..."
         btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        
+
         task.spawn(function()
             local serverId = FindSinglePlayerServer()
-            
             if serverId then
                 if GuiRef then pcall(function() GuiRef:Destroy() end) end
                 GuiRef = nil
@@ -179,7 +170,7 @@ local function CreateMainMenu()
         end)
     end)
 
-    -- SÜRÜKLEME
+    -- Перетаскивание
     local dragging = false
     local dragInput = nil
     local dragStart = nil
@@ -231,13 +222,12 @@ local function CreateMainMenu()
 end
 
 -- ============================================================
--- BAŞLAT - DİREK MENÜ
+-- Запуск
 -- ============================================================
 task.wait(0.5)
 pcall(function()
     CreateMainMenu()
 end)
 
-print("LEA BYPASS - SERVER FİND v11 AKTİF")
-print("TIKLA → ANINDA AT")
-print("BEKLEME YOK | UYARI YOK | HATA YOK")
+print("LEA BYPASS - SERVER FİND v13 АКТИВЕН")
+print("КЛИК → МГНОВЕННЫЙ ТЕЛЕПОРТ")
