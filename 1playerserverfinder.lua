@@ -1,7 +1,8 @@
 -- ============================================================
--- LEA BYPASS - SERVER FİND v8
--- AÇILIR AÇILMAZ UPDATE UYARISI | TAMAM DEYİNCE TEK BUTON
--- SERVER FİND'E BAS → ANINDA 1 KİŞİLİK SUNUCUYA AT
+-- LEA BYPASS - SERVER FİND v11 (SON)
+-- TIKLA → ANINDA 1 KİŞİLİK SUNUCUYA AT
+-- BEKLEME YOK | UYARI YOK | HATA YOK | TEKRAR DENE YOK
+-- ARKA PLAN YÜKLEME YOK | SADECE TIKLAYINCA İSTEK
 -- PC + MOBİL UYUMLU | SÜRÜKLE
 -- ============================================================
 
@@ -31,7 +32,7 @@ local function SafeHttpGet(url)
 end
 
 -- ============================================================
--- ANINDA 1 KİŞİLİK SUNUCU BUL
+-- SUNUCU BUL (TIKLAMA ANINDA ÇAĞRILIR)
 -- ============================================================
 local function FindSinglePlayerServer()
     local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
@@ -86,9 +87,11 @@ local function CleanRemotes()
 end
 
 -- ============================================================
--- TELEPORT ET
+-- ANINDA TELEPORT
 -- ============================================================
-local function TeleportToServer(serverId)
+local function InstantTeleport(serverId)
+    if not serverId then return end
+    
     CleanRemotes()
     
     task.spawn(function()
@@ -99,7 +102,7 @@ local function TeleportToServer(serverId)
 end
 
 -- ============================================================
--- ANA MENÜ - LEA BYPASS SERVER FİND
+-- ANA MENÜ - TEK BUTON
 -- ============================================================
 local function CreateMainMenu()
     local old = CoreGui:FindFirstChild("LeaBypass")
@@ -159,6 +162,7 @@ local function CreateMainMenu()
         if IsSearching then return end
         IsSearching = true
         btn.Text = "GİDİLİYOR..."
+        btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
         
         task.spawn(function()
             local serverId = FindSinglePlayerServer()
@@ -166,11 +170,10 @@ local function CreateMainMenu()
             if serverId then
                 if GuiRef then pcall(function() GuiRef:Destroy() end) end
                 GuiRef = nil
-                TeleportToServer(serverId)
+                InstantTeleport(serverId)
             else
-                btn.Text = "TEKRAR DENE"
-                task.wait(1)
                 btn.Text = "SERVER FİND"
+                btn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
                 IsSearching = false
             end
         end)
@@ -228,84 +231,13 @@ local function CreateMainMenu()
 end
 
 -- ============================================================
--- UPDATE UYARISI
--- ============================================================
-local function CreateUpdateWarning()
-    local old = CoreGui:FindFirstChild("UpdateWarning")
-    if old then old:Destroy() end
-
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "UpdateWarning"
-    gui.Parent = CoreGui
-    gui.ResetOnSpawn = false
-    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    gui.DisplayOrder = 999
-
-    local background = Instance.new("Frame")
-    background.Size = UDim2.new(1, 0, 1, 0)
-    background.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    background.BackgroundTransparency = 0.5
-    background.Parent = gui
-
-    local warningFrame = Instance.new("Frame")
-    warningFrame.Name = "WarningFrame"
-    warningFrame.Size = UDim2.new(0, 220, 0, 100)
-    warningFrame.Position = UDim2.new(0.5, -110, 0.5, -50)
-    warningFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    warningFrame.BackgroundTransparency = 0
-    warningFrame.Parent = gui
-    Instance.new("UICorner", warningFrame).CornerRadius = UDim.new(0, 12)
-    Instance.new("UIStroke", warningFrame).Color = Color3.fromRGB(255, 0, 0)
-
-    local updateLabel = Instance.new("TextLabel")
-    updateLabel.Name = "UpdateLabel"
-    updateLabel.Size = UDim2.new(1, 0, 0, 30)
-    updateLabel.Position = UDim2.new(0, 0, 0, 5)
-    updateLabel.BackgroundTransparency = 1
-    updateLabel.Text = "UPDATE"
-    updateLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-    updateLabel.TextSize = 18
-    updateLabel.Font = Enum.Font.GothamBold
-    updateLabel.Parent = warningFrame
-
-    local messageLabel = Instance.new("TextLabel")
-    messageLabel.Name = "MessageLabel"
-    messageLabel.Size = UDim2.new(1, 0, 0, 30)
-    messageLabel.Position = UDim2.new(0, 0, 0, 35)
-    messageLabel.BackgroundTransparency = 1
-    messageLabel.Text = "erdem 5km otede amcigini siktiriyor!!"
-    messageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    messageLabel.TextSize = 10
-    messageLabel.Font = Enum.Font.Gotham
-    messageLabel.TextWrapped = true
-    messageLabel.Parent = warningFrame
-
-    local okButton = Instance.new("TextButton")
-    okButton.Name = "OkButton"
-    okButton.Size = UDim2.new(1, -20, 0, 25)
-    okButton.Position = UDim2.new(0, 10, 0, 68)
-    okButton.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-    okButton.Text = "TAMAM"
-    okButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    okButton.TextSize = 12
-    okButton.Font = Enum.Font.GothamBold
-    okButton.Parent = warningFrame
-    Instance.new("UICorner", okButton).CornerRadius = UDim.new(0, 6)
-
-    okButton.MouseButton1Click:Connect(function()
-        pcall(function() gui:Destroy() end)
-        CreateMainMenu()
-    end)
-end
-
--- ============================================================
--- BAŞLAT - ÖNCE UPDATE UYARISI
+-- BAŞLAT - DİREK MENÜ
 -- ============================================================
 task.wait(0.5)
 pcall(function()
-    CreateUpdateWarning()
+    CreateMainMenu()
 end)
 
-print("LEA BYPASS - SERVER FİND v8 AKTİF")
-print("UPDATE UYARISI GÖSTERİLDİ")
-print("TAMAM'A BAS → LEA BYPASS MENÜ → SERVER FİND")
+print("LEA BYPASS - SERVER FİND v11 AKTİF")
+print("TIKLA → ANINDA AT")
+print("BEKLEME YOK | UYARI YOK | HATA YOK")
